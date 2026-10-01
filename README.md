@@ -24,6 +24,16 @@ with the changes Hamel Husain asked for in
               ranked             train/test split, baseline       keep iff train > noise AND test ↑
 ```
 
+## What a real run looks like
+
+One full pass on a small customer-support bot that really calls DeepSeek (40 production conversations), with DeepSeek also driving the dsh agent:
+
+- A person read and labeled all 40 conversations. The agent grouped the notes into 5 failure modes; three got evals: Markdown (code), empty reply (code), unfounded claims or promises (judge).
+- The judge was calibrated on 80 human labels. Dev agreement ended at 100%; held-out TPR 1.0, TNR 0.67, on only 6 failing labels, so the interval is wide and it did not pass. The agent stopped and pointed out two pairs of contradictory labels from the person, then asked for rules. With the rules it still missed, and the owner chose to continue with the skip on record.
+- Two hillclimb rounds, both editing only `prompt.md`: train 0.32 → 0.96, test 0.44 → 1.00, paired test gain +56 points, 95% interval [31, 79]. The agent stopped before round 3 because the largest possible gain (3.6 points) was below the noise floor. The change waits on its own branch for a human to merge.
+
+The same run exposed v0.1's problem: in headless mode the agent asked nobody. It labeled, wrote regex graders and split the eval on its own. That is where v0.2's enforced checkpoints come from.
+
 ## Install
 
 ```sh
@@ -201,7 +211,7 @@ Set these in your profile's `cordis.patch.yml`:
 
 ```sh
 npm install
-npm test                                   # 38 tests: core, runner, review server, judge calibration, checkpoints, hillclimb, plugin on a real dsh ToolRuntime, examples
+npm test                                   # 39 tests: core, runner, review server, judge calibration, checkpoints, hillclimb, plugin on a real dsh ToolRuntime, examples
 dsh plugin --profile headless add .        # then, against a real dsh (no API key; a scripted mock model drives it):
 DSH_BIN=$(which dsh) node test/e2e/dsh-smoke.mjs
 ```

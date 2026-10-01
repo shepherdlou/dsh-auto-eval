@@ -91,6 +91,13 @@ describe('stats', () => {
     assert.ok(ci.low > 0.6 && ci.high <= 1)
   })
 
+  it('does not report a zero-width interval when every case passes', () => {
+    const ci = bootstrapMeanCI(Array.from({ length: 12 }, () => 1))
+    assert.equal(ci.mean, 1)
+    assert.equal(ci.high, 1)
+    assert.ok(ci.low > 0.7 && ci.low < 0.8, String(ci.low))
+  })
+
   it('paired delta uses only shared cases', () => {
     const base = new Map([['a', 0], ['b', 1], ['c', 0.5]])
     const cand = new Map([['a', 1], ['b', 1], ['z', 0]])
