@@ -44,7 +44,8 @@ appear in the review page as traces.
 - Suggest a stopping rule: keep going until about 20 traces in a row
   surface no new kind of problem (theoretical saturation), or ~50 traces.
 - While they work you may summarize traces they ask about, but do not label
-  for them and do not pre-fill notes.
+  for them, do not pre-fill notes, and do not list the traces you think are
+  bad: the point is what *they* see.
 - **End your turn here.** Continue when the user says they are done. If the
   page stopped working (a one-shot or headless dsh run ends its process), the
   tool result has the command that reopens it outside dsh.

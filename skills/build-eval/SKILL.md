@@ -108,6 +108,9 @@ first (infra errors, a crashing command, a missing permission).
   run id. The user labels outputs blind (the judge's verdict appears only
   after they label). Ask for 30+ labels with both passes and fails; run more
   inbox cases if there are too few fails. **End your turn** while they label.
+  Blind means blind: do not tell the user which items you think fail or
+  which ones the judge got wrong. Your opinion would leak into the labels
+  the judge is then measured against.
 
 ## 5. Calibrate each judge
 
@@ -121,6 +124,12 @@ test. You see dev disagreements, never test items.
   and TNR meet the thresholds (default 0.9) or you have to tell the user the
   mode is not reliably judgeable (then consider a code check or a narrower
   definition).
+- Never tune the rubric to move the test numbers. When dev agrees fully but
+  test does not, the labels are too few or too one-sided: ask the user for
+  more grader labels instead. Each new rubric spends the test labels a little
+  (the result reports `testUses`); after three, ask for fresh labels.
+- Read the intervals, not just the point values: 11 of 14 is a TPR anywhere
+  from about 0.5 to 0.9.
 - Show the final rubric and the numbers to the user.
 
 ## 6. Split and baseline
