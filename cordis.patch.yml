@@ -1,0 +1,5 @@
+# dsh-auto-eval bundle layer. Users can override the row's config in their
+# profile's cordis.patch.yml; a patch replaces the whole `config` value.
+- insert:
+    - id: auto-eval
+      name: dsh-auto-eval
