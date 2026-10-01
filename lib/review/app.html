@@ -353,6 +353,7 @@ async function viewCases(id) {
   if (!id) { main.innerHTML = '<div class="empty">No cases yet. The agent collects them into <code>cases/inbox.jsonl</code>.</div>'; return }
   const c = cases.find(x => x.id === id)
   const reviewed = cases.filter(x => x.label && x.label.status !== 'unreviewed').length
+  const unreviewed = cases.filter(x => x.pool === 'inbox' && (!x.label || x.label.status === 'unreviewed'))
   main.innerHTML = `<div class="content"><div class="meta"><span>${esc(c.id)}</span><span>${esc(c.pool)}</span>${c.source ? `<span>source: ${esc(c.source)}</span>` : ''}</div>
       <h3>Input</h3><pre>${esc(show(c.input))}</pre>
       ${c.expected !== undefined ? `<h3>Expected / reference</h3><pre>${esc(show(c.expected))}</pre>` : ''}
@@ -361,7 +362,8 @@ async function viewCases(id) {
     <div class="labelbar">
       <div class="row"><button class="pass" id="ba">Representative <kbd>a</kbd></button><button class="fail" id="br">Reject <kbd>r</kbd></button>
         <input type="text" id="tags" placeholder="tags, comma separated" value="${esc((c.label?.tags ?? c.tags ?? []).join(', '))}">
-        <span class="meta" style="margin:0">${reviewed}/${cases.length} reviewed</span></div>
+        <span class="meta" style="margin:0">${reviewed}/${cases.length} reviewed</span>
+        ${unreviewed.length > 0 ? `<button id="bulk" title="Approve every case you have not reviewed yet">Approve all ${unreviewed.length} remaining</button>` : ''}</div>
       <textarea id="note" placeholder="Why reject? Wrong reference, unrealistic, duplicate…">${esc(c.label?.note ?? '')}</textarea>
     </div>`
   let status = c.label?.status ?? 'unreviewed'
@@ -376,6 +378,11 @@ async function viewCases(id) {
   document.getElementById('br').onclick = () => save('rejected').then(() => toast('Rejected'))
   document.getElementById('note').onblur = () => save()
   document.getElementById('tags').onchange = () => save()
+  document.getElementById('bulk')?.addEventListener('click', async () => {
+    if (!confirm(`Approve all ${unreviewed.length} cases you have not reviewed? Only do this after reading them.`)) return
+    const res = await post('/api/case-label-bulk', { ids: unreviewed.map(x => x.id), status: 'approved' }).catch(fail)
+    if (res) { toast(`Approved ${res.count}`); refreshMeta(); route() }
+  })
   state.keys = { a: () => save('approved'), r: () => save('rejected'), n: e => { e.preventDefault(); document.getElementById('note').focus() } }
   paint()
 }

@@ -14,6 +14,7 @@ with the changes Hamel Husain asked for in
 - **One failure mode per grader**, with a binary pass/fail.
 - **The graders themselves are shown.** The judge rubric and the check code are plain files that the agent shows you, not a summary of them.
 - **Judges are calibrated against your labels** (TPR/TNR on held-out labels) before anyone trusts them.
+- **The human steps are enforced, not suggested.** The agent cannot split an eval you have not reviewed, or hillclimb against an uncalibrated judge. An explicit skip needs your reason, is written to `audit.jsonl`, and shows up in every report.
 
 ```
 /auto-eval ─► /error-analysis ─► /build-eval ─────────────────► /hillclimb
@@ -40,13 +41,20 @@ Requires dsh ≥ 0.2.0-rc.2, Node ≥ 22 and git.
 
 In a dsh session in your project, type **`/auto-eval`**. The agent checks what already exists and takes you to the right step. **`/eval`** prints a status summary without calling the model.
 
-The agent gives you a review URL (`http://127.0.0.1:<port>/?token=…`). You do the reading and labeling there; the agent samples traces, proposes groupings, writes graders, and runs everything.
+The agent gives you a review URL (`http://127.0.0.1:<port>/?token=…`) and stops until you are done. You do the reading and labeling there; the agent samples traces, proposes groupings, writes graders, and runs everything.
+
+The page lives as long as the dsh process that started it. After a one-shot or headless run, reopen it with the bundled CLI (the agent prints the exact command):
+
+```sh
+node <plugin dir>/bin/dsh-auto-eval.mjs review <eval> --cwd <project>
+node <plugin dir>/bin/dsh-auto-eval.mjs status --cwd <project>      # same as /eval
+```
 
 | Review view | What you do |
 |---|---|
 | Traces | Pass/Fail each trace (`1`/`2`, `j`/`k`), write a note on the first thing that went wrong (open coding) |
 | Failure modes | Rename, merge and reassign the failure modes the agent proposes from your notes (axial coding; drag a note onto a mode) |
-| Cases | Approve or reject each eval input, and fix its tags |
+| Cases | Approve or reject each eval input, and fix its tags (or approve all remaining once you have read them) |
 | Grader labels | Label outputs for one judge blind; its verdict appears only after your label |
 | Results | Read scored transcripts, dispute any verdict |
 
@@ -61,10 +69,10 @@ The agent gives you a review URL (`http://127.0.0.1:<port>/?token=…`). You do 
 | `eval_init` | create / validate / list evals under `.evals/<name>/` |
 | `eval_traces` | list or sample past dsh sessions from this working directory (thumbs-down first, then unusual ones, then random), or import your app's JSONL traces |
 | `eval_review` | open the review UI; label progress |
-| `eval_split` | inbox → train (workspace) / test (held out); archives pre-split runs |
-| `eval_run` | run a split × repeats, grade, report score with a 95% interval, per-mode pass rates and diagnostics; test runs return aggregates only |
+| `eval_split` | inbox → train (workspace) / test (held out); archives pre-split runs; refuses cases you have not reviewed |
+| `eval_run` | run a split × repeats, grade, report score with a 95% interval, per-mode pass rates and diagnostics; test runs return aggregates only. Without graders it only collects outputs; `saveAsTraces` puts them in the review page |
 | `eval_judge_check` | calibrate a judge on your labels: few-shot / dev / test; dev disagreements back, test TPR/TNR only |
-| `eval_hillclimb` | start / round / finish / status |
+| `eval_hillclimb` | start / round / finish / status; refuses judges without a passing calibration on the current rubric |
 
 **Command**: `/eval`. **Guard**: model tool calls whose arguments reference the held-out store are denied.
 
@@ -107,7 +115,7 @@ target: { kind: command, command: "node app.mjs", timeoutMs: 120000, isolation: 
 repeats: 3            # per-case score = pass fraction over repeats
 concurrency: 4
 split: { seed: 42, testFraction: 0.3, stratifyBy: tag }
-judge: { provider: deepseek-official, model: deepseek-v4-pro, maxTokens: 2048 }   # default: agent default model
+judge: { provider: deepseek-official, model: deepseek-v4-pro, maxTokens: 8192 }   # default: agent default model; reasoning tokens count toward maxTokens
 goal: score           # score | cost | latency
 prices: { deepseek-flash: { input: 0.27, output: 1.1, cacheRead: 0.07 } }       # USD / 1M tokens (dsh reports tokens only)
 graders:
@@ -131,7 +139,8 @@ thresholds: { judgeTpr: 0.9, judgeTnr: 0.9, headroom: 0.95, minEffect: 0.03, min
   cases/inbox.jsonl       collected, not yet split
   cases/train.jsonl       train split
   graders/                <mode>.check.mjs | <mode>.judge.md (+ .fewshot.jsonl)
-  judge-checks/<mode>.json
+  judge-checks/<mode>.json  calibration result, tied to a hash of the rubric
+  audit.jsonl             every human step that was skipped, and why
   runs/<runId>/           results.jsonl, transcripts/, summary.json, results.html
   hillclimb/log.jsonl     every round: patch, deltas, decision, reason
 $DSH_HOME/auto-eval/<project-hash>/<name>/heldout/
@@ -192,7 +201,7 @@ Set these in your profile's `cordis.patch.yml`:
 
 ```sh
 npm install
-npm test                                   # 34 tests: core, runner, review server, judge calibration, hillclimb, plugin on a real dsh ToolRuntime, examples
+npm test                                   # 38 tests: core, runner, review server, judge calibration, checkpoints, hillclimb, plugin on a real dsh ToolRuntime, examples
 dsh plugin --profile headless add .        # then, against a real dsh (no API key; a scripted mock model drives it):
 DSH_BIN=$(which dsh) node test/e2e/dsh-smoke.mjs
 ```

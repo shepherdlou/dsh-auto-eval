@@ -54,7 +54,7 @@ describe('eval_judge_check', () => {
     assert.ok(fewshot.some(e => e.pass) && fewshot.some(e => !e.pass))
 
     // After the split, labels on held-out cases may only be hidden test items.
-    await splitOp(opts)
+    await splitOp({ ...opts, skipReview: true, reason: 'test fixture, cases are synthetic' })
     const heldout = new Set((await loadCases(paths.testCases)).map(c => c.id))
     assert.ok(heldout.size > 0)
     const after = await judgeCheckOp({ ...opts, mode: 'promises-refund' }, { judge })

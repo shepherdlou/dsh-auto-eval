@@ -8,7 +8,7 @@ import { hillclimbFinish, hillclimbRound, hillclimbStart } from '../lib/ops/hill
 import { validateEval } from '../lib/ops/init.js'
 import { runOp } from '../lib/ops/run.js'
 import { splitOp } from '../lib/ops/split.js'
-import { gitInit, tempProject } from './helpers.js'
+import { approveAll, gitInit, tempProject } from './helpers.js'
 
 const EXAMPLES = fileURLToPath(new URL('../examples/', import.meta.url))
 
@@ -34,8 +34,9 @@ describe('examples', () => {
     assert.ok(inbox.score < 0.5, 'the toy app starts out bad')
     assert.ok(inbox.perMode['promises-refund'].passRate < 0.5)
 
+    await approveAll(root, 'support-triage', home)
     await splitOp(opts)
-    const start = await hillclimbStart({ ...opts, baselineRuns: 1 }, { judge })
+    const start = await hillclimbStart({ ...opts, baselineRuns: 1, skipCalibration: true, reason: 'test: deterministic stand-in judge' }, { judge })
     writeFileSync(join(start.editIn, 'rules.json'), JSON.stringify({
       refund: 'refund', 'money back': 'refund', reimburse: 'refund', return: 'refund',
       crash: 'bug', error: 'bug', closing: 'bug', blank: 'bug', 'never load': 'bug', 'does nothing': 'bug',

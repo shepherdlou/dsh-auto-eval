@@ -6,9 +6,15 @@ whenToUse: An eval with a train/test split and calibrated graders exists and the
 
 # Hillclimb
 
+Write every message to the user in the language they write in: if they write
+Chinese, you reply in Chinese, even though these instructions and the tool
+results are in English. Failure-mode names and descriptions follow them too.
+
 Preconditions: `eval_split` done, graders validated, judges calibrated, a
 baseline run with no unresolved diagnostics, and a git repository. If any is
-missing, go back to `/build-eval`.
+missing, go back to `/build-eval`. `action: start` refuses judges without a
+passing `eval_judge_check` on the current rubric; `skipCalibration` is only for
+when the user explicitly accepts that risk.
 
 ## Configure
 

@@ -8,7 +8,7 @@ import { hillclimbFinish, hillclimbRound, hillclimbStart, hillclimbStatus } from
 import { initEval, validateEval } from '../lib/ops/init.js'
 import { splitOp } from '../lib/ops/split.js'
 import { runOp } from '../lib/ops/run.js'
-import { CATEGORY_CHECK, TRIAGE_APP, git, gitInit, tempProject, triageCases, writeFiles } from './helpers.js'
+import { CATEGORY_CHECK, TRIAGE_APP, approveAll, git, gitInit, tempProject, triageCases, writeFiles } from './helpers.js'
 
 const RULES_ALL = { refund: 'refund', 'money back': 'refund', crash: 'bug', error: 'bug', invoice: 'billing', charged: 'billing' }
 
@@ -39,6 +39,9 @@ describe('hillclimb', () => {
     // A pre-split run sees future test cases, so the split archives it.
     const pre = await runOp({ cwd: root, name: 'triage', home, split: 'inbox', limit: 4 }, {})
     assert.equal(pre.split, 'inbox')
+    await assert.rejects(splitOp({ cwd: root, name: 'triage', home }), /have not been reviewed by the user/)
+    await assert.rejects(splitOp({ cwd: root, name: 'triage', home, skipReview: true }), /needs a reason/)
+    await approveAll(root, 'triage', home)
     const split = await splitOp({ cwd: root, name: 'triage', home })
     assert.equal(split.train.added + split.test.added, 24)
     assert.equal(split.archivedPreSplitRuns, 1)

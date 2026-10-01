@@ -1,6 +1,6 @@
 {
   "name": "dsh-auto-eval",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Auto-eval and hillclimbing for DeepSeek Harness: error analysis first, one grader per failure mode, calibrated LLM judges, and train/test-gated hillclimbing.",
   "keywords": [
     "dsh-plugin",
@@ -24,6 +24,7 @@
   },
   "files": [
     "index.js",
+    "bin",
     "lib",
     "skills",
     "cordis.patch.yml",
@@ -53,5 +54,8 @@
     "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
     "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2"
+  },
+  "bin": {
+    "dsh-auto-eval": "./bin/dsh-auto-eval.mjs"
   }
 }

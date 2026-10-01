@@ -122,12 +122,15 @@ describe('plugin', () => {
     assert.equal(llm.calls[0].model, 'judge-model', 'falls back to the agent default model')
     assert.equal(llm.calls[0].temperature, 0)
 
-    const split = await call('eval_split', { name: 'triage' })
+    const blocked = await call('eval_split', { name: 'triage' })
+    assert.match(blocked.error, /not been reviewed by the user/)
+    const split = await call('eval_split', { name: 'triage', skipReview: true, reason: 'user said: these are synthetic, skip review' })
     assert.equal(split.train.added + split.test.added, 24)
     const test = await call('eval_run', { name: 'triage', split: 'test' })
     assert.equal(test.failures, undefined)
     assert.equal(test.perCase, undefined)
     assert.equal(typeof test.score, 'number')
+    assert.ok(test.diagnostics.some(d => /human checkpoint skipped \(case-review\)/.test(d)), 'skips surface in every run report')
 
     // The guard blocks other tools from reading the held-out store.
     ctx.tools.register(defineTool({
@@ -157,6 +160,10 @@ describe('plugin', () => {
     const status = await registered.commands[0].handler({ agent: { session: { header: { cwd: root } } }, rawInput: '' })
     assert.match(status.text, /■ triage \(command, 2 graders\)/)
     assert.match(status.text, /judge promises-refund: not calibrated/)
+    assert.match(status.text, /skipped case-review: user said/)
+    // Hillclimbing with an uncalibrated judge is refused unless the user accepts it.
+    const hcBlocked = await call('eval_hillclimb', { name: 'triage', action: 'start' })
+    assert.match(hcBlocked.error, /not calibrated against the user's labels: promises-refund \(missing\)/)
 
     await call('eval_review', { name: 'triage', action: 'close' })
     ctx.registry.delete(plugin)

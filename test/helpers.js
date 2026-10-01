@@ -86,3 +86,12 @@ process.exit(${reason === 'completed' ? 0 : 1})
   await chmod(path, 0o755)
   return path
 }
+
+/** Approve every inbox case, as a user would in the review UI. */
+export async function approveAll(root, name, home) {
+  const { evalPaths, readJsonl, appendJsonl } = await import('../lib/core/store.js')
+  const paths = evalPaths(root, name, home)
+  for (const c of await readJsonl(paths.inboxCases)) {
+    await appendJsonl(join(paths.labels, 'cases.jsonl'), { id: c.id, status: 'approved', note: '', at: new Date().toISOString() })
+  }
+}

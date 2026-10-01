@@ -6,6 +6,10 @@ whenToUse: After error analysis has produced failure modes, or when the user nam
 
 # Build an eval
 
+Write every message to the user in the language they write in: if they write
+Chinese, you reply in Chinese, even though these instructions and the tool
+results are in English. Failure-mode names and descriptions follow them too.
+
 Inputs: the eval directory from `/error-analysis` and the failure modes the
 user chose (`taxonomy.json`). If neither exists, run `/error-analysis` first
 unless the user explicitly declines it.
@@ -42,14 +46,17 @@ exercised by several. Tag each case with the mode(s) or slice it targets.
 
 Then `eval_review` `view: cases`: the user approves or rejects each case
 (and fixes tags). Ask them to reject anything unrealistic or with a wrong
-reference.
+reference, then **end your turn** until they are done. `eval_split` will not
+take unreviewed cases.
 
 ## 2. Write one grader per failure mode
 
 In `eval.yaml` under `graders`, one entry per mode:
 `- { mode: <taxonomy id>, kind: code | judge, file: graders/<mode>.check.mjs | graders/<mode>.judge.md }`
 
-Pick the cheapest grader that is reliable:
+Pick the cheapest grader that is reliable. The test: could two careful people
+disagree about the verdict? If no, write code. If yes, it needs judgment, so
+use a judge.
 
 - **Code** when the output is constrained: exact or normalized match, label
   or category, JSON schema, a regex, tests passing in the run's workdir.
@@ -62,7 +69,10 @@ Pick the cheapest grader that is reliable:
   `pass: true` means the failure mode is absent. `trace` is the normalized
   transcript (items, toolCalls, toolErrors, usage); `workdir` is where the
   target ran (dsh agent: inspect files, run tests).
-- **LLM judge** only for open-ended output. `graders/<mode>.judge.md` is the
+  Regular expressions over natural-language replies ("does the reply promise
+  a refund?", "does it invent order facts?") are not code-checkable: they
+  break on the next paraphrase. Those are judge graders.
+- **LLM judge** for anything that needs reading comprehension. `graders/<mode>.judge.md` is the
   rubric, sent verbatim as the judge's system prompt after a fixed protocol
   (binary verdict plus critique, JSON only). Write it as checkable claims:
   ```md
@@ -81,6 +91,10 @@ their definition. Run `eval_init` `action: validate`.
 
 ## 3. Get outputs to grade
 
+First confirm the target runs with `eval_run` `limit: 1` (not a manual shell
+test: the target gets dsh's environment, your shell may not).
+
+
 Run the target on a small slice: `eval_run` `split: inbox`, `limit: 10-20`,
 `repeats: 1`. Read the failures it returns. Fix target-independent problems
 first (infra errors, a crashing command, a missing permission).
@@ -93,7 +107,7 @@ first (infra errors, a crashing command, a missing permission).
 - For each **judge**: `eval_review` `view: grader` with its `mode` and the
   run id. The user labels outputs blind (the judge's verdict appears only
   after they label). Ask for 30+ labels with both passes and fails; run more
-  inbox cases if there are too few fails.
+  inbox cases if there are too few fails. **End your turn** while they label.
 
 ## 5. Calibrate each judge
 
@@ -112,7 +126,12 @@ test. You see dev disagreements, never test items.
 ## 6. Split and baseline
 
 - `eval_split`. Train stays in the workspace; test moves out of reach and
-  only aggregate scores ever come back. Earlier inbox runs are archived.
+  only aggregate scores ever come back. Earlier inbox runs are archived. It
+  refuses cases the user has not reviewed; `skipReview` exists only for when
+  the user explicitly says to skip review (pass their words as `reason`).
+- Settle the graders before the split. After it, the inbox is empty and the
+  test cases are out of reach, so re-validating a grader means `eval_run` on
+  train.
 - `eval_run` `split: train` and `split: test` with the configured repeats
   (3+ for an LLM target) and `consistencySample: 5` once.
 - Report: score with its 95% interval per split, pass rate per failure mode,

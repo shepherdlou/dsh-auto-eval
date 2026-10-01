@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
 import YAML from 'yaml'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { dshHome, evalPaths, exists, listEvals, loadSpec, readJson } from './lib/core/store.js'
+import { dshHome, evalPaths, exists, listEvals, loadSpec } from './lib/core/store.js'
 import { createJudge } from './lib/graders/llm.js'
 import { initEval, validateEval } from './lib/ops/init.js'
 import { tracesOp } from './lib/ops/traces.js'
@@ -23,7 +23,8 @@ import { judgeCheckOp } from './lib/ops/judge-check.js'
 import { hillclimbFinish, hillclimbRound, hillclimbStart, hillclimbStatus } from './lib/ops/hillclimb.js'
 import { startReviewServer } from './lib/review/server.js'
 import { reviewStatus } from './lib/review/data.js'
-import { listRuns } from './lib/review/runs.js'
+export { statusText }
+import { statusText } from './lib/status.js'
 
 export const name = 'dsh-auto-eval'
 export const inject = ['tools']
@@ -41,6 +42,7 @@ export const Config = z.object({
 
 const SKILL_NAMES = ['auto-eval', 'error-analysis', 'build-eval', 'hillclimb']
 const SKILLS_DIR = fileURLToPath(new URL('./skills/', import.meta.url))
+const CLI_PATH = fileURLToPath(new URL('./bin/dsh-auto-eval.mjs', import.meta.url))
 // BUNDLED_SKILL_RANK from @deepseek-ai/dsh-skill; a constant, not worth a peer dependency.
 const BUNDLED_SKILL_RANK = 600
 
@@ -153,7 +155,7 @@ export function apply(ctx, config) {
       return {
         evalDir: paths.root,
         created,
-        next: 'Start with error analysis: sample traces (eval_traces) and open the review UI (eval_review) so the user reads real data before any grader is written.',
+        next: 'Start with error analysis: get traces (eval_traces, or eval_run with saveAsTraces on collected inputs), open the review UI (eval_review) for the user, then stop and wait for their labels. No grader before the user has read real traces.',
       }
     },
   }))
@@ -222,8 +224,11 @@ export function apply(ctx, config) {
       }
       const status = await reviewStatus(paths)
       if (args.action === 'status') return toJson({ ...status, url: servers.get(key)?.url ?? null })
+      // A one-shot (headless) dsh exits after this turn and would take the
+      // page with it, so the user gets the CLI command instead of a dead URL.
+      const oneShot = ctx.get('headlessStartup') !== undefined
       let server = servers.get(key)
-      if (!server) {
+      if (!server && !oneShot) {
         server = await startReviewServer({ paths, port: config.reviewPort })
         servers.set(key, server)
       }
@@ -231,20 +236,36 @@ export function apply(ctx, config) {
       const hash = view === 'grader'
         ? `#/grader${args.mode ? `/${encodeURIComponent(args.mode)}${args.run ? `/${encodeURIComponent(args.run)}` : ''}` : ''}`
         : view === 'results' && args.run ? `#/results/${encodeURIComponent(args.run)}` : `#/${view}`
-      return toJson({ url: `${server.url}${hash}`, ...status, note: 'Share this URL with the user. It works only on this machine.' })
+      const reopen = `node ${CLI_PATH} review ${args.name} --cwd ${cwdOf(exec)}${hash ? ` # then open ${hash}` : ''}`
+      return toJson({
+        ...server ? { url: `${server.url}${hash}` } : {},
+        ...status,
+        oneShotRun: oneShot,
+        reopen,
+        stop: oneShot
+          ? `This is a one-shot dsh run: the page closes when your turn ends. Give the user this command to open it (it prints a URL and keeps the page up): ${reopen}  Then END YOUR TURN; continue only after they say they are done. Do not label, approve, or write notes or failure modes for them.`
+          : 'Give the user this URL and END YOUR TURN. The labeling is theirs to do; continue only after they reply that they are done. Do not label, approve, or write notes or failure modes for them. If the page ever stops working, the reopen command brings it back.',
+      })
     },
   }))
 
   ctx.tools.register(defineTool({
     name: 'eval_split',
-    description: 'Split the collected cases (cases/inbox.jsonl) into train (stays in the workspace) and test (moved outside it, reported only as aggregate scores). Rejected cases are dropped; runs made before the split are archived out of reach. Returns counts only.',
+    description: 'Split the collected cases (cases/inbox.jsonl) into train (stays in the workspace) and test (moved outside it, reported only as aggregate scores). Requires that the user reviewed every case in the review UI (view: cases). Rejected cases are dropped; runs made before the split are archived out of reach. Returns counts only.',
     parameters: {
       name: EVAL_NAME,
       onlyApproved: { type: 'boolean', description: 'Split only cases the user approved in the review UI; leave the rest in the inbox' },
+      skipReview: { type: 'boolean', description: 'ONLY when the user explicitly said to skip case review; recorded in audit.jsonl and shown in every report' },
+      reason: { type: 'string', description: 'With skipReview: the user\'s reason' },
     },
     output: JSON_OUTPUT,
     async execute(args, exec) {
-      return toJson(await splitOp({ cwd: cwdOf(exec), name: args.name, ...args.onlyApproved ? { onlyApproved: true } : {} }))
+      return toJson(await splitOp({
+        cwd: cwdOf(exec), name: args.name,
+        ...args.onlyApproved ? { onlyApproved: true } : {},
+        ...args.skipReview ? { skipReview: true } : {},
+        ...args.reason ? { reason: args.reason } : {},
+      }))
     },
   }))
 
@@ -252,6 +273,7 @@ export function apply(ctx, config) {
     name: 'eval_run',
     description: [
       'Run the target on a split and grade every output. split=inbox (before splitting), train, or test.',
+      'Works before any grader exists: then it only collects outputs and transcripts (use saveAsTraces to review them as traces); never write your own runner.',
       'Returns score with a 95% interval, pass rate per failure mode, infrastructure errors (excluded from the score), diagnostics, and for visible splits the failures to read first plus a results.html report.',
       'Test runs return aggregates only. Runs can take a while: use limit for a quick check.',
     ].join(' '),
@@ -262,6 +284,7 @@ export function apply(ctx, config) {
       limit: { type: 'integer', description: 'Run only this many cases (seeded sample)' },
       modes: { type: 'array', items: { type: 'string' }, description: 'Only these failure modes' },
       consistencySample: { type: 'integer', description: 'Re-grade this many outputs with each judge to measure flip rate' },
+      saveAsTraces: { type: 'boolean', description: 'Also save each output as a trace for the review UI (error analysis on fresh inputs). Not for split=test.' },
     },
     output: JSON_OUTPUT,
     async execute(args, exec) {
@@ -273,6 +296,7 @@ export function apply(ctx, config) {
         ...args.limit !== undefined ? { limit: args.limit } : {},
         ...args.modes ? { modes: args.modes } : {},
         ...args.consistencySample !== undefined ? { consistencySample: args.consistencySample } : {},
+        ...args.saveAsTraces ? { saveAsTraces: true } : {},
       }, deps))
     },
   }))
@@ -309,6 +333,8 @@ export function apply(ctx, config) {
       maxRounds: { type: 'integer', description: 'For start (default 10)' },
       repeats: { type: 'integer', description: 'For start: repeats per case for every run' },
       baselineRuns: { type: 'integer', description: 'For start: baseline repetitions for the noise floor (default 2)' },
+      skipCalibration: { type: 'boolean', description: 'For start, ONLY when the user explicitly accepts uncalibrated judges; recorded in audit.jsonl' },
+      reason: { type: 'string', description: 'With skipCalibration: the user\'s reason' },
     },
     output: JSON_OUTPUT,
     async execute(args, exec) {
@@ -324,6 +350,8 @@ export function apply(ctx, config) {
           ...args.maxRounds !== undefined ? { maxRounds: args.maxRounds } : {},
           ...args.repeats !== undefined ? { repeats: args.repeats } : {},
           ...args.baselineRuns !== undefined ? { baselineRuns: args.baselineRuns } : {},
+          ...args.skipCalibration ? { skipCalibration: true } : {},
+          ...args.reason ? { reason: args.reason } : {},
         }, deps)
         : await hillclimbRound({ ...base, ...args.note ? { note: args.note } : {} }, deps)
       return toJson(result)
@@ -399,46 +427,4 @@ export function heldoutPattern(home) {
   const escape = (/** @type {string} */ text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const roots = [escape(join(home, 'auto-eval')), '\\.dsh[\\\\/]+auto-eval', 'DSH_HOME\\}?[\\\\/]+auto-eval']
   return new RegExp(`(?:${roots.join('|')})(?![\\w.-])`)
-}
-
-/** @param {number | null | undefined} x */
-const pct = x => (x === null || x === undefined || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(1)}%`)
-
-/**
- * Plain-text status for the /eval command.
- * @param {string} cwd
- */
-export async function statusText(cwd) {
-  const names = await listEvals(cwd)
-  if (names.length === 0) {
-    return 'No evals in this project yet. Type /auto-eval to start with error analysis on your real traces.'
-  }
-  const lines = []
-  for (const evalName of names) {
-    const paths = evalPaths(cwd, evalName)
-    const check = await validateEval({ cwd, name: evalName })
-    const spec = check.spec
-    lines.push(`■ ${evalName}${spec ? ` (${spec.target.kind}, ${spec.graders.length} grader${spec.graders.length === 1 ? '' : 's'})` : ' (invalid eval.yaml)'}`)
-    lines.push(`  cases: ${check.counts.inbox ?? 0} inbox · ${check.counts.train ?? 0} train · ${check.counts.test ?? 0} test (held out)`)
-    const review = await reviewStatus(paths)
-    if (review.traces.total > 0) {
-      lines.push(`  error analysis: ${review.traces.labeled}/${review.traces.total} traces labeled · ${review.taxonomy.length} failure modes`)
-    }
-    for (const grader of spec?.graders ?? []) {
-      if (grader.kind !== 'judge') continue
-      const file = join(paths.root, 'judge-checks', `${grader.mode}.json`)
-      if (!await exists(file)) { lines.push(`  judge ${grader.mode}: not calibrated`); continue }
-      const result = await readJson(file)
-      lines.push(`  judge ${grader.mode}: TPR ${pct(result.test.tpr)} · TNR ${pct(result.test.tnr)}${result.test.meetsThresholds ? '' : ' (below threshold)'}`)
-    }
-    const runs = await listRuns(paths)
-    const last = runs[0]
-    if (last) lines.push(`  last run: ${last.runId} · ${last.split} · ${pct(last.score)} [${pct(last.ci?.low)}–${pct(last.ci?.high)}]`)
-    const hc = await hillclimbStatus({ cwd, name: evalName })
-    if (hc.status !== 'none') {
-      lines.push(`  hillclimb ${hc.id}: ${hc.status}, round ${hc.round}/${hc.maxRounds}, best round ${hc.best?.round} (train ${pct(hc.best?.train)}, test ${pct(hc.best?.test)})${hc.stalled ? ' · stalled' : ''}`)
-    }
-    for (const error of check.errors) lines.push(`  ! ${error}`)
-  }
-  return lines.join('\n')
 }

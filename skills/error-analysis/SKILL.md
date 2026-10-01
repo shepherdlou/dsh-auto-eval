@@ -6,6 +6,10 @@ whenToUse: Before building an eval; when the user asks what is going wrong with 
 
 # Error analysis
 
+Write every message to the user in the language they write in: if they write
+Chinese, you reply in Chinese, even though these instructions and the tool
+results are in English. Failure-mode names and descriptions follow them too.
+
 Goal: a short, ranked list of failure modes that the user recognizes as the
 real problems, each defined clearly enough to grade. Everything after this
 (cases, graders, hillclimbing) builds on it, so do not rush it.
@@ -27,8 +31,9 @@ real problems, each defined clearly enough to grade. Everything after this
   Each line: `{id?, input, output, messages?, usage?, meta?}`.
 
 If there are fewer than ~20 traces, say so: patterns from tiny samples are
-guesses. Offer to generate realistic inputs and run them through the target
-(`/build-eval` covers synthetic inputs) and then analyze those traces.
+guesses. Offer to write realistic inputs into `cases/inbox.jsonl` and run
+them with `eval_run` (`split: inbox`, `saveAsTraces: true`); the outputs then
+appear in the review page as traces.
 
 ## 3. Open coding (the user reads)
 
@@ -40,6 +45,9 @@ guesses. Offer to generate realistic inputs and run them through the target
   surface no new kind of problem (theoretical saturation), or ~50 traces.
 - While they work you may summarize traces they ask about, but do not label
   for them and do not pre-fill notes.
+- **End your turn here.** Continue when the user says they are done. If the
+  page stopped working (a one-shot or headless dsh run ends its process), the
+  tool result has the command that reopens it outside dsh.
 
 ## 4. Axial coding (you propose, the user decides)
 
@@ -54,7 +62,12 @@ and the failing traces' notes. Group the notes into 3-8 failure modes:
   stays unassigned rather than forced.
 
 Then `eval_review` `view: taxonomy`: the user renames, merges, splits and
-reassigns (drag a note onto a mode). Their version is final.
+reassigns (drag a note onto a mode). Their version is final. **End your turn**
+until they confirm it.
+
+Only the user's notes are evidence here. If you noticed something in the
+traces that nobody labeled, point the user at those traces and ask; do not
+add it as a failure mode on your own.
 
 ## 5. Prioritize
 

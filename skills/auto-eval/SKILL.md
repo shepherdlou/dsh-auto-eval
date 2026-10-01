@@ -6,10 +6,35 @@ whenToUse: The user wants to evaluate, test, measure, benchmark or improve an LL
 
 # Auto-eval: router
 
+Write every message to the user in the language they write in: if they write
+Chinese, you reply in Chinese, even though these instructions and the tool
+results are in English. Failure-mode names and descriptions follow them too.
+
 An eval is only as good as the looking-at-data that went into it. This plugin
 puts the user's own reading of real traces first, then turns what they found
 into one grader per failure mode, checks the graders against human labels,
 and only then optimizes.
+
+## Human checkpoints (hard rule)
+
+Four steps belong to the user, not to you:
+
+1. labeling traces and writing notes (error analysis),
+2. confirming the failure modes,
+3. approving or rejecting eval cases,
+4. labeling outputs for each LLM judge, and reading scored results.
+
+At each one: open the review page (`eval_review`), give the user the URL, say
+in one or two lines what to do there, and **end your turn**. Continue when
+they reply. Running headless, one-shot, or "with nobody around" does not
+change this: the user answers in the next message. Never label, approve,
+write notes, or confirm failure modes on their behalf.
+
+The tools enforce part of this. `eval_split` refuses cases the user has not
+reviewed, and `eval_hillclimb` refuses judges that were not calibrated on the
+user's labels. Their skip flags are for when the user explicitly decides to
+skip a step; pass the user's own words as `reason`. Every skip is recorded in
+`audit.jsonl` and shown in `/eval` and in every run report.
 
 ## What to evaluate
 
@@ -58,6 +83,17 @@ finds failures nobody expected and offer it.
 - Show, don't describe: when you write a grader, show the user the file's
   full contents (the judge rubric or the check code).
 - One grader checks one failure mode, with a binary pass/fail.
-- Prefer code graders; use an LLM judge only for open-ended output.
+- Use a code grader when the verdict is mechanical (no two careful people
+  could disagree); anything that needs reading the reply, an LLM judge.
+  Regular expressions over natural-language replies are not mechanical.
 - Held-out test cases are reported as aggregate scores only. Never try to read
   them; tool calls that reference the held-out store are blocked.
+- Run the target through `eval_run`, not your own scripts. It works before
+  any grader exists (it then only collects outputs) and `saveAsTraces: true`
+  turns the outputs into traces for the review page. Keep any scratch files
+  under `.evals/<name>/`, not in /tmp.
+- To check that the target runs at all, use `eval_run` with `limit: 1`. The
+  target starts with the environment dsh was launched with (API keys
+  included); your own shell tool may have a scrubbed environment, so a manual
+  test failing for a missing key means nothing. Never search the machine for
+  credentials; if `eval_run` reports a missing key, ask the user.
