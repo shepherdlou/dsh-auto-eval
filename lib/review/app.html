@@ -41,6 +41,7 @@ nav a.active { background: var(--accent-bg); color: var(--accent); }
 .list .item .m { font-size: .74rem; color: var(--muted); }
 .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--skip-bg); border: 1px solid var(--rule); }
 .dot.pass { background: var(--pass); border-color: var(--pass); } .dot.fail { background: var(--fail); border-color: var(--fail); }
+.dot.done { background: var(--accent); border-color: var(--accent); }
 .main { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
 .content { padding: 16px; max-width: 980px; width: 100%; }
 .labelbar { position: sticky; bottom: 0; margin-top: auto; background: var(--surface); border-top: 1px solid var(--rule); padding: 10px 16px; display: grid; gap: 8px; }
@@ -87,8 +88,13 @@ th { color: var(--muted); font-size: .78rem; font-weight: 600; }
 .toast { position: fixed; bottom: 16px; right: 16px; background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 7px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: .92; }
 @media (max-width: 760px) {
-  .split, .cols { grid-template-columns: 1fr; }
-  .list { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--rule); }
+  html, body { height: auto; }
+  body { display: block; }
+  #app, .split { display: block; }
+  .cols { grid-template-columns: 1fr; overflow: visible; }
+  .list { max-height: 28vh; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .main { overflow: visible; min-height: 70vh; }
+  .labelbar textarea { min-height: 40px; }
   .status { margin-left: 0; width: 100%; }
 }
 </style>
@@ -387,7 +393,7 @@ async function viewGrader(mode, runId, id) {
   const base = `#/grader/${encodeURIComponent(mode)}/${encodeURIComponent(runId)}/`
   const main = listLayout({
     items, selected: id,
-    renderItem: i => `<span class="dot ${i.labeled ? 'pass' : ''}"></span><div><div class="t">${esc(i.caseId)} · repeat ${i.rep}</div></div>`,
+    renderItem: i => `<span class="dot ${i.labeled ? 'done' : ''}" title="${i.labeled ? 'labeled' : 'not labeled'}"></span><div><div class="t">${esc(i.caseId)} · repeat ${i.rep}</div></div>`,
     onSelect: i => go(base + encodeURIComponent(i.id)),
   })
   const pickers = `<div class="row" style="margin-bottom:8px"><select id="pm">${judges.map(g => `<option ${g.mode === mode ? 'selected' : ''}>${esc(g.mode)}</option>`).join('')}</select>
@@ -420,7 +426,7 @@ async function viewGrader(mode, runId, id) {
     paint()
     const fresh = await api(`/api/grader-item?mode=${encodeURIComponent(mode)}&run=${encodeURIComponent(runId)}&id=${encodeURIComponent(id)}`)
     reveal(fresh.grader)
-    const dot = document.querySelector('.list .item.sel .dot'); if (dot) dot.className = 'dot pass'
+    const dot = document.querySelector('.list .item.sel .dot'); if (dot) dot.className = 'dot done'
   }
   document.getElementById('bp').onclick = () => save(true)
   document.getElementById('bf').onclick = () => save(false)

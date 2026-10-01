@@ -146,6 +146,11 @@ describe('plugin', () => {
       arguments: { path: join(root, 'rules.json') }, agent: { id: 'x', session: { header: { cwd: root } } },
     })
     assert.equal(allowed.isError, false)
+    const lookalike = await ctx.tools.execute({
+      signal: new AbortController().signal, callId: ToolCallId('g3'), name: 'read_file',
+      arguments: { path: join(root, '.dsh/auto-eval-target.yml') }, agent: { id: 'x', session: { header: { cwd: root } } },
+    })
+    assert.equal(lookalike.isError, false, 'candidate patch files are not mistaken for the held-out store')
 
     const hc = await call('eval_hillclimb', { name: 'triage', action: 'status' })
     assert.equal(hc.status, 'none')

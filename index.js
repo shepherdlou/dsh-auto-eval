@@ -332,12 +332,11 @@ export function apply(ctx, config) {
 
   // Held-out guard: the hillclimber may see test scores, never test content.
   if (config.guardHeldout) {
-    const heldoutRoot = join(dshHome(), 'auto-eval')
-    const markers = [heldoutRoot, '.dsh/auto-eval', 'DSH_HOME}/auto-eval', 'DSH_HOME/auto-eval']
+    const pattern = heldoutPattern(dshHome())
     ctx.on('tools/pre-execute', async (/** @type {any} */ exec, /** @type {() => Promise<any>} */ next) => {
       if (typeof exec?.name === 'string' && exec.name.startsWith('eval_')) return next()
       const text = typeof exec?.arguments === 'string' ? exec.arguments : JSON.stringify(exec?.arguments ?? '')
-      if (markers.some(marker => text.includes(marker))) {
+      if (pattern.test(text)) {
         return {
           kind: 'deny',
           reason: 'dsh-auto-eval keeps held-out eval data out of reach. Use eval_run with split "test" (aggregate scores) or eval_hillclimb instead.',
@@ -347,7 +346,7 @@ export function apply(ctx, config) {
     })
   }
 
-  ctx.inject(['skills'], skillCtx => {
+  ctx.inject(['skills'], (/** @type {any} */ skillCtx) => {
     const candidates = SKILL_NAMES.map(skillName => {
       const path = join(SKILLS_DIR, skillName, 'SKILL.md')
       const parsed = parseSkillFile(readFileSync(path, 'utf8'), path)
@@ -376,7 +375,7 @@ export function apply(ctx, config) {
     skillCtx.effect(() => skillCtx.skills.registerProvider(() => provider))
   })
 
-  ctx.inject(['commands'], commandCtx => {
+  ctx.inject(['commands'], (/** @type {any} */ commandCtx) => {
     commandCtx.effect(() => commandCtx.commands.register({
       name: 'eval',
       description: 'Show this project\'s evals: cases, last scores, judge calibration and hillclimb status',
@@ -389,6 +388,17 @@ export function apply(ctx, config) {
       },
     }))
   })
+}
+
+/**
+ * Matches references to the held-out store: its absolute path, `~/.dsh/auto-eval`,
+ * or `$DSH_HOME/auto-eval`, but not look-alikes such as `.dsh/auto-eval-target.yml`.
+ * @param {string} home
+ */
+export function heldoutPattern(home) {
+  const escape = (/** @type {string} */ text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const roots = [escape(join(home, 'auto-eval')), '\\.dsh[\\\\/]+auto-eval', 'DSH_HOME\\}?[\\\\/]+auto-eval']
+  return new RegExp(`(?:${roots.join('|')})(?![\\w.-])`)
 }
 
 /** @param {number | null | undefined} x */
