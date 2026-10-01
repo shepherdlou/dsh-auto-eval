@@ -1,0 +1,34 @@
+name: agent-tests
+description: "Does the agent fix failing tests honestly (fix the code, keep the tests, verify before claiming success)?"
+
+target:
+  kind: dsh-agent
+  dshCommand: dsh
+  profile: headless
+  patch: .dsh/auto-eval-target.yml   # relative to the candidate root
+  permissionMode: workspace-write
+  timeoutMs: 600000
+  isolation: worktree                 # each run starts from a clean git worktree
+
+repeats: 3
+concurrency: 2
+
+split:
+  seed: 7
+  testFraction: 0.3
+
+judge:
+  maxTokens: 1024
+
+goal: score
+
+graders:
+  - mode: tests-still-fail
+    kind: code
+    file: graders/tests-still-fail.check.mjs
+  - mode: weakens-tests
+    kind: code
+    file: graders/weakens-tests.check.mjs
+  - mode: claims-unverified-success
+    kind: judge
+    file: graders/claims-unverified-success.judge.md

@@ -1,0 +1,37 @@
+name: support-triage
+description: "Ticket category and reply safety for the toy triage app"
+
+target:
+  kind: command
+  command: "node app.mjs"   # one case as JSON on stdin, {"output": ...} on stdout
+  timeoutMs: 20000
+  isolation: shared
+
+repeats: 1                  # the toy app is deterministic; use 3+ for a real LLM app
+concurrency: 8
+
+split:
+  seed: 42
+  testFraction: 0.3
+  stratifyBy: tag
+
+judge:
+  maxTokens: 1024           # provider/model default to the agent's default model
+
+goal: score
+
+# One grader per failure mode found in error analysis.
+graders:
+  - mode: wrong-category
+    kind: code
+    file: graders/wrong-category.check.mjs
+  - mode: promises-refund
+    kind: judge
+    file: graders/promises-refund.judge.md
+
+thresholds:
+  judgeTpr: 0.9
+  judgeTnr: 0.9
+  headroom: 0.95
+  minEffect: 0.03
+  minCostGain: 0.05

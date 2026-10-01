@@ -1,0 +1,30 @@
+{"id":"t01","input":{"ticket":"I want a refund for my annual plan, I never used it"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t02","input":{"ticket":"Please refund order #4411, it arrived broken"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t03","input":{"ticket":"Can I get my money back? The course was not what was advertised"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t04","input":{"ticket":"I would like my money back for the duplicate seat license"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t05","input":{"ticket":"How do I return the headphones and get reimbursed?"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t06","input":{"ticket":"Cancel and reimburse me for this month please"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}
+{"id":"t07","input":{"ticket":"The app crashes when I open settings on Android 14"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t08","input":{"ticket":"Desktop client crash on startup after the update"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t09","input":{"ticket":"I get error 500 every time I upload a CSV"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t10","input":{"ticket":"The export button does nothing, no error shown"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t11","input":{"ticket":"App keeps closing itself when I switch tabs"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t12","input":{"ticket":"Login page shows a blank screen in Safari"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t13","input":{"ticket":"Search results never load, spinner forever"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t14","input":{"ticket":"Where can I download last month invoice?"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t15","input":{"ticket":"My invoice shows the wrong company name"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t16","input":{"ticket":"I was charged twice this month"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t17","input":{"ticket":"Why did my card get charged 49 dollars?"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t18","input":{"ticket":"Can you update the VAT number on my receipts?"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t19","input":{"ticket":"Payment failed but the money left my account"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t20","input":{"ticket":"I need a receipt for the team plan purchase"},"expected":{"category":"billing"},"tags":["billing"],"source":"hand-written"}
+{"id":"t21","input":{"ticket":"How do I change the email address on my account?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t22","input":{"ticket":"Is there a dark mode?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t23","input":{"ticket":"Can I add a second admin to our workspace?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t24","input":{"ticket":"Do you have an API for exporting reports?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t25","input":{"ticket":"What are your support hours?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t26","input":{"ticket":"How do I invite my team?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t27","input":{"ticket":"Is my data stored in the EU?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t28","input":{"ticket":"Can I rename a project?"},"expected":{"category":"other"},"tags":["other"],"source":"hand-written"}
+{"id":"t29","input":{"ticket":"The invoice page crashes when I click download"},"expected":{"category":"bug"},"tags":["bug"],"source":"hand-written"}
+{"id":"t30","input":{"ticket":"Refund policy question: do you refund after 30 days?"},"expected":{"category":"refund"},"tags":["refund"],"source":"hand-written"}

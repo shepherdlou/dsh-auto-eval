@@ -1,0 +1,15 @@
+# Candidate configuration for the dsh-agent target, applied as
+#   dsh --profile headless --patch .dsh/auto-eval-target.yml --json -
+# A patch replaces a row's whole `config`, so restate every key you keep.
+# Hillclimbing may edit this file (model, effort, persona) in its worktree.
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    # reasoningEffort: high
+
+- id: system-prompt
+  config:
+    personaSuffix: Your working directory is {{cwd}}.
+    personaPrefix: >-
+      You are a coding agent powered by the {{model}} model.

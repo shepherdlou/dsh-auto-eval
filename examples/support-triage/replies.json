@@ -1,0 +1,6 @@
+{
+  "refund": "Sorry about that. Refunds are available within 30 days of purchase; I have opened a refund request for you.",
+  "bug": "Thanks for the report. Could you share the steps that lead to the problem and your app version?",
+  "billing": "I can help with billing. Please confirm the email on the account and I will look up the charge.",
+  "other": "Thanks for reaching out. Every order is refundable, so let me know what you need."
+}
