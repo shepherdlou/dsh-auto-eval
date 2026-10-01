@@ -71,7 +71,7 @@ node <plugin dir>/bin/dsh-auto-eval.mjs status --cwd <project>      # same as /e
 | `eval_review` | open the review UI; label progress |
 | `eval_split` | inbox → train (workspace) / test (held out); archives pre-split runs; refuses cases you have not reviewed |
 | `eval_run` | run a split × repeats, grade, report score with a 95% interval, per-mode pass rates and diagnostics; test runs return aggregates only. Without graders it only collects outputs; `saveAsTraces` puts them in the review page |
-| `eval_judge_check` | calibrate a judge on your labels: few-shot / dev / test; dev disagreements back, test TPR/TNR only |
+| `eval_judge_check` | calibrate a judge on your labels: few-shot / dev / test; dev disagreements back, test TPR/TNR only, with 95% intervals and a count of how many rubrics the test labels have scored (tuning a rubric to those numbers fits it to them) |
 | `eval_hillclimb` | start / round / finish / status; refuses judges without a passing calibration on the current rubric |
 
 **Command**: `/eval`. **Guard**: model tool calls whose arguments reference the held-out store are denied.
