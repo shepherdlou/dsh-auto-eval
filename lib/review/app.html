@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eval Review</title>
+<style>
+:root { color-scheme: light dark;
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f0f2f5; --ink: #14181f; --ink-2: #4b5563; --muted: #7b8494;
+  --rule: #e1e5eb; --accent: #3b5bdb; --accent-bg: #e8edff;
+  --pass: #1a7f4b; --pass-bg: #e3f4ea; --fail: #b42318; --fail-bg: #fde8e6; --warn: #8a5a00; --warn-bg: #fff3d6;
+  --skip: #6b7280; --skip-bg: #eceef1; --user-bg: #eef2ff; --tool-bg: #f6f7f9;
+  --font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1216; --surface: #171b21; --surface-2: #1d222a; --ink: #e8ebf0; --ink-2: #b3bac5; --muted: #8a93a0;
+  --rule: #2a3039; --accent: #8ea6ff; --accent-bg: #1f2747;
+  --pass: #5fd394; --pass-bg: #15301f; --fail: #ff8a80; --fail-bg: #3a1714; --warn: #f5c451; --warn-bg: #352a0c;
+  --skip: #a0a7b2; --skip-bg: #23282f; --user-bg: #1c2340; --tool-bg: #1a1f26; } }
+:root[data-theme="dark"] {
+  --bg: #0f1216; --surface: #171b21; --surface-2: #1d222a; --ink: #e8ebf0; --ink-2: #b3bac5; --muted: #8a93a0;
+  --rule: #2a3039; --accent: #8ea6ff; --accent-bg: #1f2747;
+  --pass: #5fd394; --pass-bg: #15301f; --fail: #ff8a80; --fail-bg: #3a1714; --warn: #f5c451; --warn-bg: #352a0c;
+  --skip: #a0a7b2; --skip-bg: #23282f; --user-bg: #1c2340; --tool-bg: #1a1f26; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14.5px/1.5 var(--font); display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--surface); }
+header h1 { font-size: 1rem; margin: 0; white-space: nowrap; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav a { color: var(--ink-2); text-decoration: none; padding: 5px 10px; border-radius: 6px; font-weight: 550; font-size: .9rem; }
+nav a.active { background: var(--accent-bg); color: var(--accent); }
+.status { margin-left: auto; color: var(--muted); font-size: .82rem; }
+#app { flex: 1; min-height: 0; display: flex; }
+.split { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; width: 100%; min-height: 0; }
+.list { border-right: 1px solid var(--rule); overflow-y: auto; background: var(--surface); }
+.list .item { padding: 8px 12px; border-bottom: 1px solid var(--rule); cursor: pointer; display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: start; }
+.list .item:hover { background: var(--surface-2); }
+.list .item.sel { background: var(--accent-bg); }
+.list .item .t { font-size: .84rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.list .item .m { font-size: .74rem; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--skip-bg); border: 1px solid var(--rule); }
+.dot.pass { background: var(--pass); border-color: var(--pass); } .dot.fail { background: var(--fail); border-color: var(--fail); }
+.main { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
+.content { padding: 16px; max-width: 980px; width: 100%; }
+.labelbar { position: sticky; bottom: 0; margin-top: auto; background: var(--surface); border-top: 1px solid var(--rule); padding: 10px 16px; display: grid; gap: 8px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { border: 1px solid var(--rule); background: var(--surface); border-radius: 7px; padding: 5px 12px; cursor: pointer; font-weight: 550; }
+button:hover { background: var(--surface-2); }
+button.pass.on { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+button.fail.on { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+textarea { width: 100%; min-height: 54px; resize: vertical; border: 1px solid var(--rule); border-radius: 7px; padding: 6px 8px; background: var(--surface); }
+input[type=text], select { border: 1px solid var(--rule); border-radius: 7px; padding: 4px 8px; background: var(--surface); }
+kbd { font: 11px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; border: 1px solid transparent; background: var(--skip-bg); color: var(--skip); }
+.chip.pass { background: var(--pass-bg); color: var(--pass); } .chip.fail { background: var(--fail-bg); color: var(--fail); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); } .chip.accent { background: var(--accent-bg); color: var(--accent); }
+button.chip { cursor: pointer; } button.chip.on { border-color: currentColor; background: var(--accent-bg); color: var(--accent); }
+.meta { color: var(--muted); font-size: .82rem; margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.msg { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: var(--surface); }
+.msg.user { background: var(--user-bg); }
+.msg .who { font-size: .74rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+.msg .body { white-space: pre-wrap; word-break: break-word; }
+details.tool { border: 1px solid var(--rule); border-radius: 8px; margin: 8px 0; background: var(--tool-bg); }
+details.tool > summary { cursor: pointer; padding: 6px 10px; font: 12.5px var(--mono); color: var(--ink-2); list-style: none; display: flex; gap: 8px; align-items: center; overflow: hidden; }
+details.tool > summary .args { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+details.tool .tb { padding: 0 10px 10px; }
+pre { background: var(--surface-2); border-radius: 7px; padding: 8px 10px; margin: 6px 0; white-space: pre-wrap; word-break: break-word; font: 12.5px/1.45 var(--mono); max-height: 420px; overflow: auto; }
+h2 { font-size: 1rem; margin: 18px 0 8px; } h3 { font-size: .9rem; margin: 14px 0 6px; color: var(--ink-2); }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.empty { color: var(--muted); padding: 40px 16px; text-align: center; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; width: 100%; align-content: start; overflow-y: auto; }
+.note { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: var(--surface); cursor: grab; }
+.note .n { white-space: pre-wrap; }
+.mode { border: 1px dashed var(--rule); border-radius: 10px; padding: 10px; margin-bottom: 10px; background: var(--surface); }
+.mode.drop { border-color: var(--accent); background: var(--accent-bg); }
+.mode input[type=text] { width: 100%; margin-bottom: 4px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0 14px; }
+.kpi .v { font-size: 1.35rem; font-weight: 650; font-variant-numeric: tabular-nums; } .kpi .l { color: var(--muted); font-size: .78rem; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.verdict { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.reveal { border-left: 3px solid var(--accent); padding: 6px 10px; background: var(--accent-bg); border-radius: 0 7px 7px 0; margin-top: 8px; }
+.toast { position: fixed; bottom: 16px; right: 16px; background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 7px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: .92; }
+@media (max-width: 760px) {
+  .split, .cols { grid-template-columns: 1fr; }
+  .list { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .status { margin-left: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Eval review</h1>
+  <nav id="nav">
+    <a href="#/traces" data-v="traces">Traces</a>
+    <a href="#/taxonomy" data-v="taxonomy">Failure modes</a>
+    <a href="#/cases" data-v="cases">Cases</a>
+    <a href="#/grader" data-v="grader">Grader labels</a>
+    <a href="#/results" data-v="results">Results</a>
+  </nav>
+  <div class="status" id="status"></div>
+</header>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+const TOKEN = new URLSearchParams(location.search).get('token') || ''
+const $app = document.getElementById('app')
+const state = { meta: null }
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const show = v => v === undefined ? '' : typeof v === 'string' ? v : JSON.stringify(v, null, 2)
+const pct = x => x === null || x === undefined || !Number.isFinite(x) ? '—' : (x * 100).toFixed(1) + '%'
+const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'mode'
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, headers: { 'x-review-token': TOKEN, 'content-type': 'application/json', ...(options.headers || {}) } })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error || res.statusText)
+  return body
+}
+const post = (path, body, method = 'POST') => api(path, { method, body: JSON.stringify(body) })
+function toast(text) {
+  const t = document.getElementById('toast'); t.textContent = text; t.classList.add('show')
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('show'), 1400)
+}
+function fail(error) { toast('Error: ' + error.message) }
+
+async function refreshMeta() {
+  state.meta = await api('/api/meta')
+  document.getElementById('title').textContent = state.meta.evalName + ' · review'
+  document.title = state.meta.evalName + ' review'
+  const s = state.meta.status
+  document.getElementById('status').textContent =
+    `${s.traces.labeled}/${s.traces.total} traces labeled · ${s.taxonomy.length} failure modes · ${s.cases.approved}/${s.cases.inbox} cases approved`
+}
+
+/* ---------- trace rendering ---------- */
+function renderTrace(trace) {
+  const results = new Map(trace.items.filter(i => i.kind === 'tool-result').map(i => [i.callId, i]))
+  const used = new Set()
+  const out = []
+  for (const item of trace.items) {
+    const fb = item.feedback ? ` <span class="chip ${item.feedback.rating === 'negative' ? 'fail' : 'pass'}">user ${item.feedback.rating === 'negative' ? 'thumbs-down' : 'thumbs-up'}${item.feedback.note ? ': ' + esc(item.feedback.note) : ''}</span>` : ''
+    switch (item.kind) {
+      case 'system':
+        out.push(`<details class="tool"><summary>System prompt</summary><div class="tb"><pre>${esc(item.text)}</pre></div></details>`); break
+      case 'context':
+        out.push(`<details class="tool"><summary>Injected context</summary><div class="tb"><pre>${esc(item.text)}</pre></div></details>`); break
+      case 'user':
+        out.push(`<div class="msg user"><div class="who">User${fb}</div><div class="body">${esc(item.text)}</div></div>`); break
+      case 'assistant':
+        out.push(`<div class="msg"><div class="who">Assistant${fb}</div><div class="body">${esc(item.text)}</div></div>`); break
+      case 'reasoning':
+        out.push(`<details class="tool"><summary>Reasoning</summary><div class="tb"><pre>${esc(item.text)}</pre></div></details>`); break
+      case 'tool-call': {
+        const r = results.get(item.callId); if (r) used.add(r)
+        const err = r?.isError ? '<span class="chip fail">error</span>' : ''
+        out.push(`<details class="tool"${r?.isError ? ' open' : ''}><summary><strong>${esc(item.name || 'tool')}</strong>${err}<span class="args">${esc(item.text.slice(0, 160))}</span></summary>
+          <div class="tb"><h3>Arguments</h3><pre>${esc(prettyJson(item.text))}</pre>${r ? `<h3>Result</h3><pre>${esc(r.text)}</pre>` : ''}</div></details>`)
+        break
+      }
+      case 'tool-result':
+        if (!used.has(item)) out.push(`<details class="tool"><summary>result ${esc(item.name || '')}${item.isError ? ' <span class="chip fail">error</span>' : ''}</summary><div class="tb"><pre>${esc(item.text)}</pre></div></details>`)
+        break
+      case 'turn-end':
+        if (item.text && item.text !== 'completed') out.push(`<div class="meta"><span class="chip warn">turn ended: ${esc(item.text)}</span></div>`)
+        break
+    }
+  }
+  return out.join('')
+}
+function prettyJson(text) { try { return JSON.stringify(JSON.parse(text), null, 2) } catch { return text } }
+function traceMeta(t) {
+  const parts = [t.id, t.model, t.createdAt ? new Date(t.createdAt).toLocaleString() : null,
+    `${t.toolCalls} tool calls`, t.toolErrors ? `${t.toolErrors} tool errors` : null, t.endReason && t.endReason !== 'completed' ? `ended: ${t.endReason}` : null,
+    t.usage ? `${t.usage.inputTokens + t.usage.cacheReadTokens} in / ${t.usage.outputTokens} out tokens` : null]
+  return parts.filter(Boolean).map(p => `<span>${esc(p)}</span>`).join('')
+}
+
+/* ---------- list + detail layout with keyboard navigation ---------- */
+function listLayout({ items, renderItem, onSelect, selected }) {
+  $app.innerHTML = `<div class="split"><div class="list" id="list"></div><div class="main" id="main"></div></div>`
+  const list = document.getElementById('list')
+  list.innerHTML = items.length === 0 ? '<div class="empty">Nothing here yet.</div>' : items.map((it, i) => `<div class="item${it.id === selected ? ' sel' : ''}" data-i="${i}">${renderItem(it)}</div>`).join('')
+  list.onclick = e => { const el = e.target.closest('.item'); if (el) state.nav.onSelect(items[Number(el.dataset.i)]) }
+  const index = Math.max(0, items.findIndex(it => it.id === selected))
+  list.querySelector('.sel')?.scrollIntoView({ block: 'nearest' })
+  state.nav = { items, index, onSelect }
+  return document.getElementById('main')
+}
+document.addEventListener('keydown', e => {
+  if (e.target.matches('textarea, input, select')) { if (e.key === 'Escape') e.target.blur(); return }
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  const n = state.nav
+  if ((e.key === 'j' || e.key === 'k') && n && n.items.length) {
+    const next = Math.min(n.items.length - 1, Math.max(0, n.index + (e.key === 'j' ? 1 : -1)))
+    if (next !== n.index) n.onSelect(n.items[next])
+    e.preventDefault(); return
+  }
+  state.keys?.[e.key]?.(e)
+})
+const go = hash => { if (location.hash !== hash) location.hash = hash; else route() }
+
+/* ---------- Traces (open coding) ---------- */
+async function viewTraces(id) {
+  const [items, tax] = await Promise.all([api('/api/traces'), api('/api/taxonomy')])
+  if (!id && items.length) id = (items.find(t => !t.label || t.label.pass === null) || items[0]).id
+  const main = listLayout({
+    items, selected: id,
+    renderItem: t => `<span class="dot ${t.label?.pass === true ? 'pass' : t.label?.pass === false ? 'fail' : ''}"></span><div><div class="t">${esc(t.input || t.id)}</div>
+      <div class="m">${t.flagged ? '<span class="chip fail">flagged</span> ' : ''}${t.toolErrors ? t.toolErrors + ' tool errors · ' : ''}${esc(t.modes.join(', '))}</div></div>`,
+    onSelect: t => go('#/traces/' + encodeURIComponent(t.id)),
+  })
+  if (!id) { main.innerHTML = '<div class="empty">No traces sampled yet. Ask the agent to run <code>eval_traces</code> with action <code>sample</code>.</div>'; return }
+  const { trace, label } = await api('/api/trace?id=' + encodeURIComponent(id))
+  const labeled = items.filter(t => t.label && t.label.pass !== null).length
+  let current = { pass: label?.pass ?? null, note: label?.note ?? '' }
+  const modes = tax.taxonomy.modes
+  main.innerHTML = `<div class="content"><div class="meta">${traceMeta(trace)}</div>${renderTrace(trace)}</div>
+    <div class="labelbar">
+      <div class="row"><button class="pass" id="bp">Pass <kbd>1</kbd></button><button class="fail" id="bf">Fail <kbd>2</kbd></button>
+        <button id="bc">Clear <kbd>0</kbd></button><span class="meta" style="margin:0">${labeled}/${items.length} labeled · <kbd>j</kbd>/<kbd>k</kbd> next/prev · <kbd>n</kbd> note</span></div>
+      <textarea id="note" placeholder="Open coding: what went wrong, in your words? (the first thing that failed matters most)">${esc(current.note)}</textarea>
+      ${modes.length ? `<div class="row" id="modes"><span class="meta" style="margin:0">Failure modes:</span>${modes.map(m => `<button class="chip${m.traceIds.includes(trace.id) ? ' on' : ''}" data-m="${esc(m.id)}">${esc(m.name)}</button>`).join('')}</div>` : ''}
+    </div>`
+  const paint = () => {
+    document.getElementById('bp').classList.toggle('on', current.pass === true)
+    document.getElementById('bf').classList.toggle('on', current.pass === false)
+  }
+  const saved = { pass: current.pass, note: current.note }
+  const save = async () => {
+    current.note = document.getElementById('note').value
+    if (current.note === saved.note && current.pass === saved.pass) return
+    saved.pass = current.pass; saved.note = current.note
+    await post('/api/trace-label', { id: trace.id, pass: current.pass, note: current.note }).catch(fail)
+    const el = document.querySelector('.list .item.sel .dot')
+    if (el) el.className = 'dot ' + (current.pass === true ? 'pass' : current.pass === false ? 'fail' : '')
+  }
+  const setPass = v => { current.pass = v; paint(); save().then(() => toast(v === null ? 'Cleared' : v ? 'Pass' : 'Fail')) }
+  document.getElementById('bp').onclick = () => setPass(true)
+  document.getElementById('bf').onclick = () => setPass(false)
+  document.getElementById('bc').onclick = () => setPass(null)
+  document.getElementById('note').onblur = save
+  document.getElementById('modes')?.addEventListener('click', async e => {
+    const id = e.target.closest('[data-m]')?.dataset.m; if (!id) return
+    const mode = modes.find(m => m.id === id)
+    mode.traceIds = mode.traceIds.includes(trace.id) ? mode.traceIds.filter(x => x !== trace.id) : [...mode.traceIds, trace.id]
+    e.target.closest('[data-m]').classList.toggle('on')
+    await post('/api/taxonomy', { modes }, 'PUT').catch(fail)
+  })
+  state.keys = {
+    '1': () => setPass(true), '2': () => setPass(false), '0': () => setPass(null),
+    n: e => { e.preventDefault(); document.getElementById('note').focus() },
+  }
+  const prevSelect = state.nav.onSelect
+  state.nav.onSelect = async t => { await save(); prevSelect(t) }
+  paint()
+}
+
+/* ---------- Taxonomy (axial coding) ---------- */
+async function viewTaxonomy() {
+  const { taxonomy, notes } = await api('/api/taxonomy')
+  state.nav = null; state.keys = {}
+  const modes = taxonomy.modes
+  const persist = async () => {
+    const saved = await post('/api/taxonomy', { modes }, 'PUT').catch(fail)
+    if (saved) { toast('Saved'); refreshMeta() }
+  }
+  const failing = notes.filter(n => n.pass === false || n.note)
+  const draw = () => {
+    $app.innerHTML = `<div class="cols">
+      <section><h2>Notes from labeled traces <span class="meta" style="display:inline">${failing.length} · drag a note onto a failure mode</span></h2>
+        ${failing.length === 0 ? '<div class="empty">Label traces and write notes first.</div>' : failing.map(n => `<div class="note" draggable="true" data-t="${esc(n.traceId)}">
+          <div class="meta" style="margin:0 0 4px">${n.pass === false ? '<span class="chip fail">fail</span>' : n.pass === true ? '<span class="chip pass">pass</span>' : ''}<a href="#/traces/${encodeURIComponent(n.traceId)}">${esc(n.traceId)}</a></div>
+          <div class="n">${esc(n.note || '(no note)')}</div>
+          <div class="row" style="margin-top:6px">${modes.filter(m => m.traceIds.includes(n.traceId)).map(m => `<button class="chip on" data-un="${esc(m.id)}" data-t="${esc(n.traceId)}" title="remove">${esc(m.name)} ×</button>`).join('')}
+            ${modes.length ? `<select data-add="${esc(n.traceId)}"><option value="">+ assign…</option>${modes.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')}</select>` : ''}</div>
+        </div>`).join('')}
+      </section>
+      <section><h2>Failure modes <span class="meta" style="display:inline">most frequent first</span></h2>
+        <div class="row" style="margin-bottom:10px"><input type="text" id="newname" placeholder="New failure mode name"><button class="primary" id="add">Add</button></div>
+        ${modes.length === 0 ? '<div class="empty">No failure modes yet. Ask the agent to propose a taxonomy from your notes, or add one here.</div>' : ''}
+        ${modes.map((m, i) => `<div class="mode" data-mode="${esc(m.id)}">
+          <div class="row" style="justify-content:space-between"><code>${esc(m.id)}</code><span class="chip accent">${m.traceIds.length} traces</span></div>
+          <input type="text" data-name="${i}" value="${esc(m.name)}">
+          <textarea data-desc="${i}" placeholder="Definition: what counts, what does not">${esc(m.description)}</textarea>
+          <div class="row" style="margin-top:6px"><select data-merge="${i}"><option value="">Merge into…</option>${modes.filter(o => o.id !== m.id).map(o => `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join('')}</select>
+            <button data-del="${i}">Delete</button></div>
+        </div>`).join('')}
+      </section></div>`
+  }
+  draw()
+  $app.oninput = null
+  $app.onchange = async e => {
+    const t = e.target
+    if (t.dataset.name !== undefined) { modes[t.dataset.name].name = t.value; await persist() }
+    else if (t.dataset.desc !== undefined) { modes[t.dataset.desc].description = t.value; await persist() }
+    else if (t.dataset.add !== undefined && t.value) {
+      const m = modes.find(x => x.id === t.value); if (!m.traceIds.includes(t.dataset.add)) m.traceIds.push(t.dataset.add)
+      await persist(); draw()
+    } else if (t.dataset.merge !== undefined && t.value) {
+      const from = modes[t.dataset.merge], into = modes.find(x => x.id === t.value)
+      if (!confirm(`Merge "${from.name}" into "${into.name}"?`)) { t.value = ''; return }
+      into.traceIds = [...new Set([...into.traceIds, ...from.traceIds])]
+      modes.splice(Number(t.dataset.merge), 1); await persist(); draw()
+    }
+  }
+  $app.onclick = async e => {
+    const t = e.target
+    if (t.id === 'add') {
+      const name = document.getElementById('newname').value.trim(); if (!name) return
+      let id = slug(name); while (modes.some(m => m.id === id)) id += '-2'
+      modes.push({ id, name, description: '', traceIds: [] }); await persist(); draw()
+    } else if (t.dataset.del !== undefined) {
+      if (!confirm('Delete this failure mode?')) return
+      modes.splice(Number(t.dataset.del), 1); await persist(); draw()
+    } else if (t.dataset.un !== undefined) {
+      const m = modes.find(x => x.id === t.dataset.un); m.traceIds = m.traceIds.filter(x => x !== t.dataset.t); await persist(); draw()
+    }
+  }
+  $app.ondragstart = e => { const n = e.target.closest('.note'); if (n) e.dataTransfer.setData('text/plain', n.dataset.t) }
+  $app.ondragover = e => { const m = e.target.closest('.mode'); if (m) { e.preventDefault(); m.classList.add('drop') } }
+  $app.ondragleave = e => e.target.closest('.mode')?.classList.remove('drop')
+  $app.ondrop = async e => {
+    const el = e.target.closest('.mode'); if (!el) return
+    e.preventDefault(); el.classList.remove('drop')
+    const traceId = e.dataTransfer.getData('text/plain'); const m = modes.find(x => x.id === el.dataset.mode)
+    if (traceId && !m.traceIds.includes(traceId)) { m.traceIds.push(traceId); await persist(); draw() }
+  }
+}
+
+/* ---------- Cases ---------- */
+async function viewCases(id) {
+  const cases = await api('/api/cases')
+  if (!id && cases.length) id = (cases.find(c => c.pool === 'inbox' && !c.label) || cases[0]).id
+  const main = listLayout({
+    items: cases, selected: id,
+    renderItem: c => `<span class="dot ${c.label?.status === 'approved' ? 'pass' : c.label?.status === 'rejected' ? 'fail' : ''}"></span><div><div class="t">${esc(c.id)} · ${esc(show(c.input).slice(0, 120))}</div>
+      <div class="m">${esc(c.pool)}${c.tags?.length ? ' · ' + esc(c.tags.join(', ')) : ''}${c.source ? ' · ' + esc(c.source) : ''}</div></div>`,
+    onSelect: c => go('#/cases/' + encodeURIComponent(c.id)),
+  })
+  if (!id) { main.innerHTML = '<div class="empty">No cases yet. The agent collects them into <code>cases/inbox.jsonl</code>.</div>'; return }
+  const c = cases.find(x => x.id === id)
+  const reviewed = cases.filter(x => x.label && x.label.status !== 'unreviewed').length
+  main.innerHTML = `<div class="content"><div class="meta"><span>${esc(c.id)}</span><span>${esc(c.pool)}</span>${c.source ? `<span>source: ${esc(c.source)}</span>` : ''}</div>
+      <h3>Input</h3><pre>${esc(show(c.input))}</pre>
+      ${c.expected !== undefined ? `<h3>Expected / reference</h3><pre>${esc(show(c.expected))}</pre>` : ''}
+      ${c.fixture ? `<h3>Fixture</h3><pre>${esc(show(c.fixture))}</pre>` : ''}
+      ${c.meta ? `<h3>Meta</h3><pre>${esc(show(c.meta))}</pre>` : ''}</div>
+    <div class="labelbar">
+      <div class="row"><button class="pass" id="ba">Representative <kbd>a</kbd></button><button class="fail" id="br">Reject <kbd>r</kbd></button>
+        <input type="text" id="tags" placeholder="tags, comma separated" value="${esc((c.label?.tags ?? c.tags ?? []).join(', '))}">
+        <span class="meta" style="margin:0">${reviewed}/${cases.length} reviewed</span></div>
+      <textarea id="note" placeholder="Why reject? Wrong reference, unrealistic, duplicate…">${esc(c.label?.note ?? '')}</textarea>
+    </div>`
+  let status = c.label?.status ?? 'unreviewed'
+  const paint = () => { document.getElementById('ba').classList.toggle('on', status === 'approved'); document.getElementById('br').classList.toggle('on', status === 'rejected') }
+  const save = async s => {
+    if (s) status = s
+    const tags = document.getElementById('tags').value.split(',').map(t => t.trim()).filter(Boolean)
+    await post('/api/case-label', { id: c.id, status, note: document.getElementById('note').value, tags }).catch(fail)
+    paint(); const dot = document.querySelector('.list .item.sel .dot'); if (dot) dot.className = 'dot ' + (status === 'approved' ? 'pass' : status === 'rejected' ? 'fail' : '')
+  }
+  document.getElementById('ba').onclick = () => save('approved').then(() => toast('Approved'))
+  document.getElementById('br').onclick = () => save('rejected').then(() => toast('Rejected'))
+  document.getElementById('note').onblur = () => save()
+  document.getElementById('tags').onchange = () => save()
+  state.keys = { a: () => save('approved'), r: () => save('rejected'), n: e => { e.preventDefault(); document.getElementById('note').focus() } }
+  paint()
+}
+
+/* ---------- Grader labels (blind, then reveal) ---------- */
+async function viewGrader(mode, runId, id) {
+  const meta = state.meta
+  const judges = meta.graders
+  const runs = meta.runs
+  mode = mode || judges.find(g => g.kind === 'judge')?.mode || judges[0]?.mode
+  runId = runId || runs[0]?.runId
+  if (!mode || !runId) { state.nav = null; $app.innerHTML = '<div class="empty">Grader labeling needs at least one grader in eval.yaml and one run. Ask the agent to run <code>eval_run</code> on a few cases first.</div>'; return }
+  const { items, rubric, grader } = await api(`/api/grader-items?mode=${encodeURIComponent(mode)}&run=${encodeURIComponent(runId)}`)
+  if (!id && items.length) id = (items.find(i => !i.labeled) || items[0]).id
+  const base = `#/grader/${encodeURIComponent(mode)}/${encodeURIComponent(runId)}/`
+  const main = listLayout({
+    items, selected: id,
+    renderItem: i => `<span class="dot ${i.labeled ? 'pass' : ''}"></span><div><div class="t">${esc(i.caseId)} · repeat ${i.rep}</div></div>`,
+    onSelect: i => go(base + encodeURIComponent(i.id)),
+  })
+  const pickers = `<div class="row" style="margin-bottom:8px"><select id="pm">${judges.map(g => `<option ${g.mode === mode ? 'selected' : ''}>${esc(g.mode)}</option>`).join('')}</select>
+    <select id="pr">${runs.map(r => `<option value="${esc(r.runId)}" ${r.runId === runId ? 'selected' : ''}>${esc(r.runId)} (${esc(r.split)})</option>`).join('')}</select>
+    <span class="meta" style="margin:0">${items.filter(i => i.labeled).length}/${items.length} labeled · label first, the grader's verdict appears after</span></div>`
+  if (!id) { main.innerHTML = `<div class="content">${pickers}<div class="empty">No graded outputs for this mode in this run.</div></div>`; bindPickers(); return }
+  const item = await api(`/api/grader-item?mode=${encodeURIComponent(mode)}&run=${encodeURIComponent(runId)}&id=${encodeURIComponent(id)}`)
+  main.innerHTML = `<div class="content">${pickers}
+      <details class="tool" open><summary>Rubric for <strong>${esc(mode)}</strong> (${esc(grader.kind)} · ${esc(grader.file)})</summary><div class="tb"><pre>${esc(rubric || '(code grader: see the file)')}</pre></div></details>
+      <h3>Input</h3><pre>${esc(show(item.input))}</pre>
+      ${item.expected !== undefined ? `<h3>Reference</h3><pre>${esc(show(item.expected))}</pre>` : ''}
+      <h3>Output</h3><pre>${esc(show(item.output))}</pre>
+      ${item.trace && item.trace.items.some(i => i.kind === 'tool-call') ? `<details class="tool"><summary>Full trace</summary><div class="tb">${renderTrace(item.trace)}</div></details>` : ''}
+      <div id="rev"></div></div>
+    <div class="labelbar"><div class="row"><span>Is <strong>${esc(mode)}</strong> absent?</span><button class="pass" id="bp">Pass <kbd>1</kbd></button><button class="fail" id="bf">Fail <kbd>2</kbd></button></div>
+      <textarea id="note" placeholder="Why? (becomes calibration material for the judge)">${esc(item.label?.note ?? '')}</textarea></div>`
+  bindPickers()
+  let pass = item.label?.pass
+  const reveal = g => {
+    if (!g) return
+    const agree = 'pass' in g ? g.pass === pass : null
+    document.getElementById('rev').innerHTML = `<div class="reveal"><strong>Grader said:</strong> ${'pass' in g ? `<span class="chip ${g.pass ? 'pass' : 'fail'}">${g.pass ? 'pass' : 'fail'}</span>` : '<span class="chip">error</span>'}
+      ${agree === null ? '' : agree ? '<span class="chip pass">agrees with you</span>' : '<span class="chip fail">disagrees with you</span>'}<div class="body" style="margin-top:4px;white-space:pre-wrap">${esc(g.critique || g.reason || g.error || '')}</div></div>`
+  }
+  const paint = () => { document.getElementById('bp').classList.toggle('on', pass === true); document.getElementById('bf').classList.toggle('on', pass === false) }
+  const save = async v => {
+    if (v !== undefined) pass = v
+    if (pass === undefined) return
+    await post('/api/grader-label', { mode, id, pass, note: document.getElementById('note').value }).catch(fail)
+    paint()
+    const fresh = await api(`/api/grader-item?mode=${encodeURIComponent(mode)}&run=${encodeURIComponent(runId)}&id=${encodeURIComponent(id)}`)
+    reveal(fresh.grader)
+    const dot = document.querySelector('.list .item.sel .dot'); if (dot) dot.className = 'dot pass'
+  }
+  document.getElementById('bp').onclick = () => save(true)
+  document.getElementById('bf').onclick = () => save(false)
+  document.getElementById('note').onblur = () => save()
+  state.keys = { '1': () => save(true), '2': () => save(false), n: e => { e.preventDefault(); document.getElementById('note').focus() } }
+  paint(); reveal(item.grader)
+  function bindPickers() {
+    document.getElementById('pm').onchange = e => go(`#/grader/${encodeURIComponent(e.target.value)}/${encodeURIComponent(runId)}`)
+    document.getElementById('pr').onchange = e => go(`#/grader/${encodeURIComponent(mode)}/${encodeURIComponent(e.target.value)}`)
+  }
+}
+
+/* ---------- Results ---------- */
+async function viewResults(runId, key) {
+  const runs = state.meta.runs
+  runId = runId || runs[0]?.runId
+  if (!runId) { state.nav = null; $app.innerHTML = '<div class="empty">No runs yet.</div>'; return }
+  const [{ summary, rows }, disputes] = await Promise.all([api('/api/run?run=' + encodeURIComponent(runId)), api('/api/disputes')])
+  const byCase = new Map()
+  for (const r of rows) { const l = byCase.get(r.caseId) || []; l.push(r); byCase.set(r.caseId, l) }
+  const items = [...byCase.entries()].sort(([a], [b]) => (summary.perCase[a]?.score ?? 2) - (summary.perCase[b]?.score ?? 2) || a.localeCompare(b))
+    .flatMap(([, list]) => list.sort((x, y) => x.rep - y.rep)).map(r => ({ ...r, id: r.caseId + '#' + r.rep }))
+  if (!key && items.length) key = items[0].id
+  const main = listLayout({
+    items, selected: key,
+    renderItem: r => `<span class="dot ${r.infraError ? '' : r.pass ? 'pass' : r.pass === false ? 'fail' : ''}"></span><div><div class="t">${esc(r.caseId)} · repeat ${r.rep}</div>
+      <div class="m">${r.infraError ? 'infra: ' + esc(r.infraError.kind) : esc(Object.entries(r.grades).filter(([, g]) => g.pass === false).map(([m]) => m).join(', '))}</div></div>`,
+    onSelect: r => go(`#/results/${encodeURIComponent(runId)}/${encodeURIComponent(r.id)}`),
+  })
+  const header = `<div class="row" style="margin-bottom:8px"><select id="rr">${runs.map(r => `<option value="${esc(r.runId)}" ${r.runId === runId ? 'selected' : ''}>${esc(r.runId)} (${esc(r.split)}, ${pct(r.score)})</option>`).join('')}</select></div>
+    <div class="kpis"><div class="card kpi"><div class="v">${pct(summary.score)}</div><div class="l">score · CI ${pct(summary.ci.low)}–${pct(summary.ci.high)}</div></div>
+      <div class="card kpi"><div class="v">${summary.scoredRuns}/${summary.runs}</div><div class="l">runs scored</div></div>
+      <div class="card kpi"><div class="v">${summary.infra.count}</div><div class="l">infra errors</div></div>
+      ${Object.entries(summary.perMode).map(([m, v]) => `<div class="card kpi"><div class="v">${pct(v.passRate)}</div><div class="l">${esc(m)}</div></div>`).join('')}</div>
+    ${summary.diagnostics.length ? `<div class="card">${summary.diagnostics.map(d => `<div>• ${esc(d)}</div>`).join('')}</div>` : ''}`
+  const row = items.find(r => r.id === key)
+  if (!row) { main.innerHTML = `<div class="content">${header}</div>`; bind(); return }
+  const t = await api(`/api/transcript?run=${encodeURIComponent(runId)}&file=${encodeURIComponent(row.transcript)}`)
+  const disputed = new Map(disputes.filter(d => d.runId === runId && d.caseId === row.caseId && d.rep === row.rep && !d.withdrawn).map(d => [d.mode, d]))
+  main.innerHTML = `<div class="content">${header}
+    <h2>${esc(row.caseId)} · repeat ${row.rep}</h2>
+    ${row.infraError ? `<div class="card"><span class="chip warn">infra: ${esc(row.infraError.kind)}</span> ${esc(row.infraError.message)}</div>` : ''}
+    <h3>Verdicts <span class="meta" style="display:inline">would you grade differently? mark it</span></h3>
+    ${Object.entries(t.grades || {}).map(([m, g]) => `<div class="verdict"><code>${esc(m)}</code>${'error' in g ? '<span class="chip">error</span>' : `<span class="chip ${g.pass ? 'pass' : 'fail'}">${g.pass ? 'pass' : 'fail'}</span>`}
+      <span style="flex:1">${esc(g.critique || g.reason || g.error || '')}</span>${'pass' in g ? `<button data-dispute="${esc(m)}" data-gp="${g.pass}">${disputed.has(m) ? 'Disputed ✓' : 'I disagree'}</button>` : ''}</div>`).join('')}
+    <h3>Input</h3><pre>${esc(show(t.input))}</pre>${t.expected !== undefined ? `<h3>Reference</h3><pre>${esc(show(t.expected))}</pre>` : ''}
+    <h3>Output</h3><pre>${esc(show(t.output))}</pre>
+    <h3>Trace</h3><div class="meta">${traceMeta(t.trace)}</div>${renderTrace(t.trace)}</div>`
+  bind()
+  main.onclick = async e => {
+    const b = e.target.closest('[data-dispute]'); if (!b) return
+    const m = b.dataset.dispute
+    if (disputed.has(m)) { await post('/api/dispute', { run: runId, caseId: row.caseId, rep: row.rep, mode: m, graderPass: b.dataset.gp === 'true', withdrawn: true }); disputed.delete(m); b.textContent = 'I disagree'; return }
+    const note = prompt('What should the verdict be, and why?') ; if (note === null) return
+    await post('/api/dispute', { run: runId, caseId: row.caseId, rep: row.rep, mode: m, graderPass: b.dataset.gp === 'true', note }).catch(fail)
+    disputed.set(m, {}); b.textContent = 'Disputed ✓'; toast('Recorded')
+  }
+  state.keys = {}
+  function bind() { document.getElementById('rr').onchange = e => go('#/results/' + encodeURIComponent(e.target.value)) }
+}
+
+/* ---------- router ---------- */
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent)
+  const view = parts[0] || 'traces'
+  for (const a of document.querySelectorAll('nav a')) a.classList.toggle('active', a.dataset.v === view)
+  $app.onclick = $app.onchange = $app.ondragstart = $app.ondragover = $app.ondragleave = $app.ondrop = null
+  state.keys = {}
+  try {
+    if (!state.meta || view === 'grader' || view === 'results') await refreshMeta()
+    if (view === 'traces') await viewTraces(parts[1])
+    else if (view === 'taxonomy') await viewTaxonomy()
+    else if (view === 'cases') await viewCases(parts[1])
+    else if (view === 'grader') await viewGrader(parts[1], parts[2], parts[3])
+    else if (view === 'results') await viewResults(parts[1], parts[2])
+  } catch (error) { $app.innerHTML = `<div class="empty">${esc(error.message)}</div>` }
+}
+window.addEventListener('hashchange', route)
+route()
+</script>
+</body>
+</html>
