@@ -243,8 +243,8 @@ export function apply(ctx, config) {
         oneShotRun: oneShot,
         reopen,
         stop: oneShot
-          ? `This is a one-shot dsh run: the page closes when your turn ends. Give the user this command to open it (it prints a URL and keeps the page up): ${reopen}  Then END YOUR TURN; continue only after they say they are done. Do not label, approve, or write notes or failure modes for them.`
-          : 'Give the user this URL and END YOUR TURN. The labeling is theirs to do; continue only after they reply that they are done. Do not label, approve, or write notes or failure modes for them. If the page ever stops working, the reopen command brings it back.',
+          ? `This is a one-shot dsh run: the page closes when your turn ends. Give the user this command to open it (it prints a URL and keeps the page up): ${reopen}  Then END YOUR TURN; continue only after they say they are done. Do not label, approve, or write notes or failure modes for them. Write to the user in the language they write in.`
+          : 'Give the user this URL and END YOUR TURN. The labeling is theirs to do; continue only after they reply that they are done. Do not label, approve, or write notes or failure modes for them. If the page ever stops working, the reopen command brings it back. Write to the user in the language they write in.',
       })
     },
   }))
